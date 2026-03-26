@@ -28,15 +28,18 @@ cp .env.example .env
 OPENAI_API_KEY=your_actual_api_key
 ```
 
-## Running the API
+## Running the Application
 
-Start the FastAPI server:
+### With Docker (recommended)
+
+Start both the agent and Phoenix observability:
 
 ```bash
-poetry run uvicorn api:app --reload
+docker compose up -d
 ```
 
-The API will be available at `http://localhost:8000`.
+- Agent API: `http://localhost:8000`
+- Phoenix UI: `http://localhost:6006`
 
 ## API Endpoints
 
