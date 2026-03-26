@@ -52,7 +52,7 @@ Send a message to the agent and receive a response.
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "What is the latest news about AI?"}'
+  -d '{"message": "Plan me a 5 day trip to tokyo from denver from June 5th to June 10th"}'
 ```
 
 **Response:**
