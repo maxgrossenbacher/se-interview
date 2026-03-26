@@ -138,7 +138,7 @@ The evaluate.py uses LLM-as-a-Judge to evaluate each user interaction and score 
 
 ```bash
 # Run evaluations
-docker compose up -d phoenix
+docker compose up -d
 python evaluate.py
 ```
 
