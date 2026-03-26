@@ -1,13 +1,9 @@
-"""Tool selection correctness assessment using Phoenix llm_classify."""
-
 import json
 import pandas as pd
 from phoenix.evals import OpenAIModel, llm_classify, ClassificationTemplate
 
-from evals.frustration import extract_message
 
-
-TOOL_SELECTION_RAILS = ["correct", "acceptable", "incorrect"]
+TOOL_SELECTION_RAILS = ["correct", "incorrect"]
 
 TOOL_SELECTION_TEMPLATE = ClassificationTemplate(
     rails=TOOL_SELECTION_RAILS,
@@ -25,22 +21,30 @@ Assistant response: {agent_output}
 
 Judge tool selection correctness:
 - "correct": The assistant used exactly the right tool(s) for the request, or correctly chose not to use a tool (e.g., asked clarifying questions first).
-- "acceptable": The assistant used a reasonable tool but a better choice existed (e.g., used duckduckgo_search instead of find_hotel_options for a hotel query), or used more tools than necessary.
 - "incorrect": The assistant used clearly wrong tools, failed to use any tool when one was needed, or used tools when it should have asked for clarification first.
 """,
-    scores=[1.0, 0.5, 0.0],
+    scores=[1.0, 0.0],
 )
 
+def extract_message(raw):
+    """Extract the last message content from a raw span attribute value."""
+    try:
+        if isinstance(raw, str):
+            parsed = json.loads(raw)
+            messages = parsed.get("messages", [])
+            if messages:
+                return messages[-1].get("content", raw)
+        return str(raw)
+    except Exception:
+        return str(raw)
 
-def build_tool_context(raw_input: object) -> str:
+
+def build_tool_context(raw_input):
     """Extract user input text from raw span attribute."""
     return extract_message(raw_input)
 
 
-def run_tool_selection_assessment(
-    spans_df: pd.DataFrame,
-    model: OpenAIModel,
-) -> pd.DataFrame:
+def run_tool_selection_assessment(spans_df, model):
     """
     Run tool-selection-correctness classification on a spans dataframe.
 
@@ -61,7 +65,7 @@ def run_tool_selection_assessment(
         data=assessment_df,
         model=model,
         template=TOOL_SELECTION_TEMPLATE,
-        rails=TOOL_SELECTION_RAILS,
+        rails=['correct', 'incorrect'],
         provide_explanation=True,
         include_exceptions=True,
     )

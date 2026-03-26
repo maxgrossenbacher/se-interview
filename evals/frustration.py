@@ -1,5 +1,3 @@
-"""User frustration assessment using Phoenix llm_classify."""
-
 import json
 import pandas as pd
 from phoenix.evals import (
@@ -9,7 +7,7 @@ from phoenix.evals import (
 )
 
 
-def extract_message(raw: object) -> str:
+def extract_message(raw):
     """Extract the last message content from a raw span attribute value."""
     try:
         if isinstance(raw, str):
@@ -22,17 +20,14 @@ def extract_message(raw: object) -> str:
         return str(raw)
 
 
-def build_conversation_text(raw_input: object, raw_output: object) -> str:
-    """Build a 'User: ... / Assistant: ...' conversation string from raw span data."""
+def build_conversation_text(raw_input, raw_output):
+    """Build a conversation string from raw span data."""
     user_msg = extract_message(raw_input)
     assistant_msg = extract_message(raw_output)
     return f"User: {user_msg}\nAssistant: {assistant_msg}"
 
 
-def run_frustration_assessment(
-    spans_df: pd.DataFrame,
-    model: OpenAIModel,
-) -> pd.DataFrame:
+def run_frustration_assessment(spans_df, model):
     """
     Run user-frustration classification on a spans dataframe.
 

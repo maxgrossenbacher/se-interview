@@ -1,17 +1,36 @@
 import operator
 from typing import Annotated, Literal
+import os
+
 
 from dotenv import load_dotenv
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import AnyMessage, SystemMessage, ToolMessage
+from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
+from tools.travel_tools import find_flight_options, find_hotel_options, find_nearby_attractions
+
+from phoenix.otel import register
+
+def setup_phoenix():
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = os.getenv(
+        "PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006"
+    )
+    tracer_provider = register(
+        project_name="travel-agent",
+        auto_instrument=True  # automatically instruments LangChain + LangGraph
+    )
+    print("✅ Phoenix tracing enabled")
+
+
+setup_phoenix()
 load_dotenv()
 
 search_tool = DuckDuckGoSearchRun()
-tools = [search_tool]
+tools = [search_tool, find_flight_options, find_hotel_options, find_nearby_attractions]
 tools_by_name = {tool.name: tool for tool in tools}
 
 model = ChatOpenAI(model="gpt-4o", temperature=0)
@@ -29,8 +48,64 @@ def llm_call(state: MessagesState) -> dict:
             model_with_tools.invoke(
                 [
                     SystemMessage(
-                        content="You are a helpful assistant that can search the web to answer questions. "
-                        "Use the search tool when you need current information."
+                        '''You are an expert travel assistant. You help users find flights, hotels, attractions, and plan itineraries.
+
+                                COLLECTING INFORMATION:
+                                - For flights: collect origin city, destination city, departure date, and return date (if round trip) before calling find_flight_options
+                                - For hotels: collect destination city, departure date (check-in), and return date (check-out) before calling find_hotel_options
+                                - For attractions: collect destination city — interests are optional, if not provided find popular tourist attractions
+                                - Always ask for missing required information conversationally before calling any tool
+
+                                FLIGHT RESULTS FORMAT:
+                                {origin} → {destination}
+                                {departure_date} - {return_date}
+
+                                | Airline | Price | Booking Website |
+                                |---------|-------|-----------------|
+                                | {airline_name} | {price} | {website_url} |
+
+                                If prices are unavailable, suggest Google Flights, Kayak, or Expedia.
+
+                                HOTEL RESULTS FORMAT:
+                                Hotels in {destination}
+                                {departure_date} - {return_date}
+
+                                | Hotel | Type | Price Per Night | Booking Website | Description |
+                                |-------|------|----------------|-----------------|-------------|
+                                | {hotel_name} | {type} | {price} | {website_url} | {description} |
+
+                                ATTRACTIONS RESULTS FORMAT:
+                                Top Attractions in {destination}
+
+                                | Attraction | Description | Price | Booking Website |
+                                |------------|-------------|-------|-----------------|
+                                | {attraction_name} | {description} | {price} | {website_url} |
+
+                                ITINERARY FORMAT:
+                                When a user asks to plan a trip, call all three tools — find_flight_options, 
+                                find_hotel_options, and find_nearby_attractions — then combine into this format:
+
+                                ## {origin} → {destination}
+                                ## {departure_date} - {return_date}
+
+                                ### Day-by-Day Itinerary
+                                **Day 1 - {date}**
+                                - Morning: {activity}
+                                - Afternoon: {activity}  
+                                - Evening: {activity}
+
+                                **Day 2 - {date}**
+                                ...continue for each day of the trip
+
+                                ### Flight Options
+                                {flight results table}
+
+                                ### Hotel Options
+                                {hotel results table}
+
+                                ### Attractions
+                                {attractions results table}
+                            '''
                     )
                 ]
                 + state["messages"]
